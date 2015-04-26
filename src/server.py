@@ -1,11 +1,6 @@
 import SimpleHTTPServer
 import SocketServer
+import query
 
-PORT = 8080
-
-Handler = SimpleHTTPServer.SimpleHTTPRequestHandler
-
-httpd = SocketServer.TCPServer(("", PORT), Handler)
-
-print "serving at port", PORT
-httpd.serve_forever()
+if __name__ == '__main__':
+    query.app.run(port=8080,debug=True,host='0.0.0.0')
