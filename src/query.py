@@ -57,43 +57,50 @@ def get_scores():
 
 ##############################################################################################
 
-@app.route('/api/v1.0/scores/<int:userid>', methods=['GET'])
+@app.route('/api/v1.0/scores', methods=['POST'])
 def get_user_scores(userid):
+	username = request.json.get('username')
+
 	scores = db.session.query(db.Scores).\
-				filter(scores.userid == userid)
+				join(db.Users).\
+				filter(db.Users.username == username)
 
 	return jsonify(json_list=[i.serialize for i in scores]),200
 
 ##############################################################################################
 
-@app.route('/api/v1.0/scores/<int:userid>', methods=['PUT'])
-def update_scores(userid):
-	if not request.json or not 'score' in request.json:
-		abort(400)
-	scores = db.session.query(db.Scores).\
-				filter(scores.userid == userid).\
-				update({"score": request.json['score']})
+@app.route('/api/v1.0/user/adduser', methods=['POST'])
+def new_user():
 
-	return jsonify(json_list=[i.serialize for i in scores]),201
+	username = request.json.get('username')
+	password = request.json.get('password')
+	hash = pbkdf2_sha256.encrypt(password, rounds=200000, salt_size=16)
+	print hash
+	if username is None or password is None:
+		abort(400) # missing arguments
+	if db.session.query(db.Users).filter_by(username = username).first() is not None:
+		abort(400) # existing user
+	user = db.Users(username = username)
+	user.password = hash
+	db.session.begin()
+	db.session.add(user)
+	db.session.commit()
 
-##############################################################################################
-
-@app.route('/api/v1.0/user/adduser/<string:password>', methods=['PUT'])
-def add_user(password):
-	hash = pbkdf2_sha256.encrypt("password", rounds=200000, salt_size=16)
-
-	#store hash password
-
-	return 200
+	return jsonify({ 'username': user.username }), 201
 
 ##############################################################################################
 
 @app.route('/api/v1.0/user/login', methods=['POST'])
-def login_user(password):
-	successfulLogin = pbkdf2_sha256.verify("password", hash)
+def login_user():
+	username = request.json.get('username')
+	password = request.json.get('password')
+	hash = db.session.query(db.Users).filter_by(username= username).first()
+	if hash is None:
+		abort(400) # user does not exist
+	successfulLogin = pbkdf2_sha256.verify(password, hash.password)
 	if not successfulLogin:
-		abort(400)
-	return 200
+		abort(400) #incorrect password
+	return jsonify({'username':username}),200
 
 ##############################################################################################
 
